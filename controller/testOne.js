@@ -2,7 +2,6 @@ const Test = require("../model/testOne");
 const fs = require("fs");
 const mammoth = require("mammoth");
 
-// WORD FILE UPLOAD → PARSE → DB SAVE
 exports.uploadWord = async (req, res) => {
   try {
     if (!req.file) {
@@ -11,12 +10,26 @@ exports.uploadWord = async (req, res) => {
         .json({ success: false, message: "File yuklanmadi!" });
     }
 
-    // Wordni o'qish
     const result = await mammoth.extractRawText({ path: req.file.path });
     const text = result.value;
-    const tests = parseWord(text);
 
-    // DB ga saqlash
+    let tests = parseWord(text);
+
+    // testId ni testslarga qo‘shamiz
+    const testId = req.body.testId;
+
+    if (!testId) {
+      return res.status(400).json({
+        success: false,
+        message: "testId yuborilishi shart!",
+      });
+    }
+
+    tests = tests.map((t) => ({
+      ...t,
+      testId,
+    }));
+
     const saved = await Test.insertMany(tests);
 
     fs.unlinkSync(req.file.path);
@@ -43,25 +56,34 @@ function parseWord(text) {
   let options = [];
 
   for (let line of lines) {
-    if (/^\d+\./.test(line)) {
-      if (question && options.length === 4) {
+    // SAVOL — * bilan boshlansa
+    if (line.startsWith("*")) {
+      if (question && options.length >= 2) {
         tests.push(testBuilder(question, options));
       }
-      question = line.replace(/^\d+\.\s*/, "");
+
+      question = line.substring(1).trim();
       options = [];
+      continue;
     }
 
-    if (/^[A-D]\)/i.test(line)) {
-      const isCorrect = line.includes("*");
-      const option = line
-        .replace("*", "")
-        .replace(/^[A-D]\)\s*/, "")
-        .trim();
-      options.push({ text: option, isCorrect });
+    // TO‘G‘RI VARIANT — faqat QATOR boshidagi +
+    if (/^\+\s*/.test(line)) {
+      const text = line.replace(/^\+\s*/, "").trim();
+      options.push({ text, isCorrect: true });
+      continue;
+    }
+
+    // ODDIY VARIANT — faqat QATOR boshidagi =
+    if (/^=\s*/.test(line)) {
+      const text = line.replace(/^=\s*/, "").trim();
+      options.push({ text, isCorrect: false });
+      continue;
     }
   }
 
-  if (question && options.length === 4) {
+  // Oxirgi savolni ham saqlash
+  if (question && options.length >= 2) {
     tests.push(testBuilder(question, options));
   }
 

@@ -2,11 +2,12 @@ const mongoose = require("mongoose");
 
 const testSchema = new mongoose.Schema(
   {
-    // test: {
-    //   type: mongoose.Schema.Types.ObjectId,
-    //   ref: "test",
-    //   required: true,
-    // },
+    testId: {
+      // <<<<< YANGI QO‘SHILDI
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "test", // bu sizning other model nomi
+      required: true,
+    },
     question: {
       type: String,
       required: true,
