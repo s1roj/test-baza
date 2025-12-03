@@ -1,6 +1,7 @@
 const Test = require("../model/testOne");
 const fs = require("fs");
 const mammoth = require("mammoth");
+const mongoose = require("mongoose");
 
 exports.uploadWord = async (req, res) => {
   try {
@@ -101,6 +102,29 @@ function testBuilder(question, opts) {
     correctIndex,
   };
 }
+
+exports.getRandom = async (req, res) => {
+  try {
+    const testId = req.query.testId;
+    const limit = parseInt(req.query.limit) || 20;
+
+    if (!testId) {
+      return res.status(400).json({
+        success: false,
+        message: "testId yuborilishi shart!",
+      });
+    }
+
+    const tests = await Test.aggregate([
+      { $match: { testId: new mongoose.Types.ObjectId(testId) } },
+      { $sample: { size: limit } }, // random tanlaydi
+    ]);
+
+    res.json({ success: true, tests });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 // CRUD
 exports.getAll = async (req, res) => {
