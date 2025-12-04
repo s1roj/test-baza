@@ -1,7 +1,52 @@
-const Test = require("../model/testOne");
+const Test = require("../model/test");
+const TestOne = require("../model/testOne");
 const fs = require("fs");
 const mammoth = require("mammoth");
 const mongoose = require("mongoose");
+const Attempt = require("../model/attempt");
+const TestInfo = require("../model/testInfo");
+
+exports.startTest = async (req, res) => {
+  try {
+    const { studentId, testId } = req.query;
+
+    // 1) Student oldin test boshlaganmi?
+    let attempt = await Attempt.findOne({ studentId, testId });
+
+    if (attempt) {
+      return res.json({
+        success: true,
+        questions: attempt.questions,
+        attemptId: attempt._id,
+      });
+    }
+
+    // 2) randomCount ni olish
+    const info = await TestInfo.findOne({ testId });
+    const randomCount = info.randomCount;
+
+    // 3) Random test tanlash
+    const questions = await TestOne.aggregate([
+      { $match: { testId: new mongoose.Types.ObjectId(testId) } },
+      { $sample: { size: randomCount } },
+    ]);
+
+    // 4) yangi attempt yaratish
+    attempt = await Attempt.create({
+      studentId,
+      testId,
+      questions,
+    });
+
+    res.json({
+      success: true,
+      questions,
+      attemptId: attempt._id,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 exports.uploadWord = async (req, res) => {
   try {
@@ -26,12 +71,22 @@ exports.uploadWord = async (req, res) => {
       });
     }
 
+    const randomCount = req.body.randomCount;
+
+    if (randomCount) {
+      await TestInfo.findOneAndUpdate(
+        { testId },
+        { randomCount },
+        { upsert: true, new: true }
+      );
+    }
+
     tests = tests.map((t) => ({
       ...t,
       testId,
     }));
 
-    const saved = await Test.insertMany(tests);
+    const saved = await TestOne.insertMany(tests);
 
     fs.unlinkSync(req.file.path);
 
@@ -103,33 +158,10 @@ function testBuilder(question, opts) {
   };
 }
 
-exports.getRandom = async (req, res) => {
-  try {
-    const testId = req.query.testId;
-    const limit = parseInt(req.query.limit) || 20;
-
-    if (!testId) {
-      return res.status(400).json({
-        success: false,
-        message: "testId yuborilishi shart!",
-      });
-    }
-
-    const tests = await Test.aggregate([
-      { $match: { testId: new mongoose.Types.ObjectId(testId) } },
-      { $sample: { size: limit } }, // random tanlaydi
-    ]);
-
-    res.json({ success: true, tests });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
-};
-
 // CRUD
 exports.getAll = async (req, res) => {
   try {
-    const data = await Test.find();
+    const data = await TestOne.find();
     res.json({ success: true, data });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -138,7 +170,7 @@ exports.getAll = async (req, res) => {
 
 exports.create = async (req, res) => {
   try {
-    const saved = await Test.create(req.body);
+    const saved = await TestOne.create(req.body);
     res.json({ success: true, data: saved });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
@@ -147,7 +179,7 @@ exports.create = async (req, res) => {
 
 exports.update = async (req, res) => {
   try {
-    const updated = await Test.findByIdAndUpdate(req.params.id, req.body, {
+    const updated = await TestOne.findByIdAndUpdate(req.params.id, req.body, {
       new: true,
     });
     res.json({ success: true, data: updated });
@@ -158,8 +190,54 @@ exports.update = async (req, res) => {
 
 exports.delete = async (req, res) => {
   try {
-    await Test.findByIdAndDelete(req.params.id);
-    res.json({ success: true, message: "Test o'chirildi" });
+    await TestOne.findByIdAndDelete(req.params.id);
+    res.json({ success: true, message: "TestOne o'chirildi" });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// TESTLAR APIsi
+
+exports.deleteByTestId = async (req, res) => {
+  try {
+    const { testId } = req.params;
+
+    await TestOne.deleteMany({
+      testId: new mongoose.Types.ObjectId(testId.trim()),
+    });
+
+    res.json({
+      success: true,
+      message: "Ushbu testId ga tegishli barcha savollar o‘chirildi",
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+exports.deleteFullTest = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    await Test.findByIdAndDelete(id);
+
+    await TestOne.deleteMany({
+      testId: new mongoose.Types.ObjectId(id),
+    });
+
+    await TestInfo.deleteMany({
+      testId: new mongoose.Types.ObjectId(id),
+    });
+
+    await Attempt.deleteMany({
+      testId: new mongoose.Types.ObjectId(id),
+    });
+
+    res.json({
+      success: true,
+      message: "Test, savollar, testInfo va attemptlar tozalandi!",
+    });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }

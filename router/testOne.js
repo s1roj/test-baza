@@ -10,12 +10,16 @@ router.post(
   upload.single("file"),
   controller.uploadWord
 );
-router.get("/api/testOne/random", controller.getRandom);
+router.get("/api/testOne/start", controller.startTest);
 
 // CRUD
 router.post("/api/testOne/create", controller.create);
 router.get("/api/testOne/all", controller.getAll);
 router.put("/api/testOne/update/:id", controller.update);
 router.delete("/api/testOne/delete/:id", controller.delete);
+
+// TESTLAR APIsi
+router.delete("/api/testOne/deleteByTest/:testId", controller.deleteByTestId);
+router.delete("/api/test/delete/full/:id", controller.deleteFullTest);
 
 module.exports = router;
