@@ -4,5 +4,6 @@ const controller = require("../controller/result");
 
 router.post("/api/result/save", controller.saveResult);
 router.get("/api/result/:id", controller.getByAttempt);
+router.get("/api/test/:testId/results", controller.getResultsByTest);
 
 module.exports = router;

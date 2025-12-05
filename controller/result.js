@@ -1,4 +1,6 @@
 const Result = require("../model/result");
+const Attempt = require("../model/attempt");
+
 const mongoose = require("mongoose");
 
 exports.saveResult = async (req, res) => {
@@ -40,6 +42,49 @@ exports.saveResult = async (req, res) => {
   }
 };
 exports.getByAttempt = async (req, res) => {
-  const result = await Result.findById({ _id: req.params.id });
-  res.json(result);
+  try {
+    const result = await Result.findOne({ attemptId: req.params.id });
+
+    if (!result) {
+      return res.json({
+        success: false,
+        message: "Natija topilmadi",
+        data: null,
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
 };
+exports.getResultsByTest = async (req, res) => {
+  try {
+    const testId = req.params.testId;
+
+    // 1) Natijalarni olish
+    const results = await Result.find({ testId })
+      .populate("attemptId") // attempts.data
+      .populate("testId"); // test mavzusi
+
+    if (!results.length) {
+      return res.json({
+        success: false,
+        message: "Bu test bo‘yicha hali natija yo‘q",
+        data: [],
+      });
+    }
+
+    res.json({
+      success: true,
+      data: results,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+//  Ozgardi +
