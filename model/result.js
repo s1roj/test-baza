@@ -15,6 +15,7 @@ const resultSchema = new mongoose.Schema(
     attemptId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "attempt",
+      required: true,
     },
 
     correct: Number,

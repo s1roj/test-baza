@@ -40,19 +40,6 @@ exports.saveResult = async (req, res) => {
   }
 };
 exports.getByAttempt = async (req, res) => {
-  try {
-    const attemptId = req.params.attemptId;
-
-    const result = await Result.findOne({ attemptId });
-
-    if (!result) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Natija topilmadi" });
-    }
-
-    res.json({ success: true, result });
-  } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
-  }
+  const result = await Result.findById({ _id: req.params.id });
+  res.json(result);
 };

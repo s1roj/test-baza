@@ -12,6 +12,7 @@ app.use(cors());
 app.use(require("./router/test"));
 app.use(require("./router/testOne"));
 app.use(require("./router/result"));
+app.use(require("./router/attempt"));
 
 mongodb();
 app.listen(PORT, () => {
