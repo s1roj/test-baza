@@ -20,6 +20,8 @@ exports.startAttempt = async (req, res) => {
     if (attempt) {
       return res.json({
         success: true,
+        already: true, // Qo‘shildi !!!
+        message: "Bu test oldin ishlangan",
         questions: attempt.questions,
         attemptId: attempt._id,
       });
@@ -50,6 +52,8 @@ exports.startAttempt = async (req, res) => {
 
     res.json({
       success: true,
+      already: false, // Qo‘shildi
+      message: "Yangi attempt yaratildi",
       questions,
       attemptId: attempt._id,
     });
