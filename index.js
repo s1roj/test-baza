@@ -3,7 +3,7 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const mongodb = require("./config/database");
 const app = express();
-const PORT = 3000;
+const PORT = 3100;
 
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: false }));
