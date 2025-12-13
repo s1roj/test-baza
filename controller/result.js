@@ -1,6 +1,6 @@
 const Result = require("../model/result");
 const Attempt = require("../model/attempt");
-
+const User = require("../model/user");
 const mongoose = require("mongoose");
 
 exports.saveResult = async (req, res) => {
@@ -18,7 +18,7 @@ exports.saveResult = async (req, res) => {
     } = req.body;
 
     const newResult = await Result.create({
-      studentId,
+      studentId: new mongoose.Types.ObjectId(studentId),
       testId: new mongoose.Types.ObjectId(testId),
       attemptId,
       correct,
@@ -28,6 +28,8 @@ exports.saveResult = async (req, res) => {
       grade,
       answers,
     });
+
+    await Attempt.findByIdAndUpdate(attemptId, { status: "finished" });
 
     res.json({
       success: true,
@@ -41,6 +43,7 @@ exports.saveResult = async (req, res) => {
     });
   }
 };
+
 exports.getByAttempt = async (req, res) => {
   try {
     const result = await Result.findOne({ attemptId: req.params.id });
@@ -67,6 +70,7 @@ exports.getResultsByTest = async (req, res) => {
 
     // 1) Natijalarni olish
     const results = await Result.find({ testId })
+      .populate("studentId", "name faculty groupNumber")
       .populate("attemptId") // attempts.data
       .populate("testId"); // test mavzusi
 
@@ -87,4 +91,19 @@ exports.getResultsByTest = async (req, res) => {
   }
 };
 
-//  Ozgardi +
+exports.editResult = async (req, res) => {
+  const result = await Result.findByIdAndUpdate({ _id: req.params.id });
+  result.correct = req.body.correct;
+  result.wrong = req.body.wrong;
+  result.percent = req.body.percent;
+  result.grade = req.body.grade;
+
+  await result
+    .save()
+    .then((data) => {
+      res.status(200).json({ success: true, data });
+    })
+    .catch((error) => {
+      res.status(500).json({ success: false, data: error });
+    });
+};
