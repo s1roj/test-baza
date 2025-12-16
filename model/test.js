@@ -12,6 +12,10 @@ const test = mongoose.Schema(
       type: Number,
       unique: true,
     },
+    isActive: {
+      type: Boolean,
+      default: false, // test yaratilganda YOPIQ
+    },
   },
   {
     timestamps: true,

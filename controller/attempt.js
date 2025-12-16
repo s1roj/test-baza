@@ -15,26 +15,23 @@ exports.startAttempt = async (req, res) => {
       });
     }
 
-    // 1) Testni topamiz
     const test = await Test.findById(testId);
-    if (!test) {
-      return res.status(404).json({
+
+    if (!test.isActive) {
+      return res.json({
         success: false,
-        message: "Test topilmadi!",
+        reason: "closed",
       });
     }
 
-    // Test uchun berilgan vaqt (minutlarda)
-    const duration = Number(test.duration || 0); // agar qo‘ymagan bo‘lsa 0 bo‘ladi
+    const duration = Number(test.duration || 0);
     const now = new Date();
     const finishTime =
       duration > 0 ? new Date(now.getTime() + duration * 60000) : null;
 
-    // 2) Oldin boshlaganmi?
     let attempt = await Attempt.findOne({ studentId, testId });
 
     if (attempt) {
-      // 1) Agar allaqachon yakunlagan bo‘lsa → qayta ruxsat yo‘q
       if (attempt.status === "finished") {
         return res.json({
           success: false,
@@ -44,7 +41,6 @@ exports.startAttempt = async (req, res) => {
         });
       }
 
-      // 2) Agar finishTime bor va vaqt tugagan bo‘lsa → qayta ruxsat yo‘q
       if (attempt.finishTime && new Date() > attempt.finishTime) {
         return res.json({
           success: false,
@@ -54,7 +50,6 @@ exports.startAttempt = async (req, res) => {
         });
       }
 
-      // 3) Test hali davom etayotgan bo‘lsa → savollarni qaytaramiz
       return res.json({
         success: true,
         attemptId: attempt._id,
@@ -63,7 +58,6 @@ exports.startAttempt = async (req, res) => {
       });
     }
 
-    // 3) Random savollar sonini TestInfo dan olamiz
     const info = await TestInfo.findOne({ testId });
     if (!info || !info.randomCount) {
       return res.status(400).json({
@@ -74,7 +68,6 @@ exports.startAttempt = async (req, res) => {
 
     const randomCount = info.randomCount;
 
-    // 4) Random savollarni tanlaymiz
     const questions = await TestOne.aggregate([
       { $match: { testId: new mongoose.Types.ObjectId(testId) } },
       { $sample: { size: randomCount } },
@@ -87,7 +80,6 @@ exports.startAttempt = async (req, res) => {
       });
     }
 
-    // 5) Yangi attempt yaratamiz
     attempt = await Attempt.create({
       studentId,
       testId,

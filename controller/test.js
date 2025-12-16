@@ -31,6 +31,28 @@ exports.create = async (req, res) => {
   }
 };
 
+exports.toggleTestStatus = async (req, res) => {
+  try {
+    const test = await Test.findById(req.params.id);
+    if (!test) {
+      return res
+        .status(404)
+        .json({ success: false, message: "Test topilmadi" });
+    }
+
+    test.isActive = !test.isActive; // ochiq ↔ yopiq
+    await test.save();
+
+    res.json({
+      success: true,
+      isActive: test.isActive,
+      message: test.isActive ? "Test ochildi" : "Test yopildi",
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 exports.getAll = async (req, res) => {
   const result = await Test.find();
 
