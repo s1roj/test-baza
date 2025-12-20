@@ -1,8 +1,14 @@
 const Admin = require("../model/admin");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const { secret_key, time } = require("../config/config");
 
 exports.register = async (req, res) => {
   try {
     const { name, phone, role, password } = req.body;
+
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(password, salt);
 
     const exists = await Admin.findOne({ phone });
     if (exists) {
@@ -15,7 +21,7 @@ exports.register = async (req, res) => {
     const result = new Admin({
       name: name,
       phone: phone,
-      password: password,
+      password: passwordHash,
       role: role,
     });
 
@@ -67,37 +73,43 @@ exports.login = async (req, res) => {
     }
 
     // Adminni topish
-    const admin = await Admin.findOne({ phone });
+    const admin = await Admin.findOne({ phone }).select({ password: 1 });
 
-    if (!admin) {
+    if (!admin || admin === null) {
       return res.json({
         success: false,
         message: "Foydalanuvchi mavjud emas!",
       });
     }
+    const isMatch = await bcrypt.compare(password, admin.password);
 
-    // Parolni tekshirish
-    if (admin.password !== password) {
+    if (isMatch === false || !isMatch) {
       return res.json({
         success: false,
-        message: "Parol noto‘g‘ri!",
+        message: "Noto‘g‘ri parol!",
       });
+    } else {
+      const token = jwt.sign({ adminId: admin._id }, secret_key, {
+        expiresIn: time,
+      });
+      return res.json({ success: true, token: token });
     }
-
-    // LOGIN muvaffaqiyatli
-    return res.json({
-      success: true,
-      message: "Muvaffaqiyatli login!",
-      data: {
-        id: admin._id,
-        name: admin.name,
-        phone: admin.phone,
-        role: admin.role,
-      },
-    });
   } catch (error) {
     return res.json({ success: false, error: error.message });
   }
+};
+
+exports.decodeToken = async (req, res) => {
+  const { token } = req.headers;
+  jwt.verify(token, secret_key, async function (err, decode) {
+    if (err) {
+      return res 
+        .status(401)
+        .json({ success: false, message: "Noto'g'ri token" });
+    } else {
+      res.status(200).json({ success: true, decodedToken: decode });
+    }
+  });
 };
 
 exports.delete = async (req, res) => {
