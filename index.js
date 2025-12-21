@@ -17,6 +17,7 @@ app.use(require("./router/user"));
 app.use(require("./router/admin"));
 app.use(require("./router/testWord"));
 
+
 mongodb();
 app.listen(PORT, () => {
   console.log("Server is running", PORT);

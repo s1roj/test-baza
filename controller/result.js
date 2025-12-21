@@ -6,7 +6,7 @@ const mongoose = require("mongoose");
 exports.saveResult = async (req, res) => {
   try {
     const {
-      studentId,
+      studentCode,
       testId,
       attemptId,
       correct,
@@ -18,7 +18,7 @@ exports.saveResult = async (req, res) => {
     } = req.body;
 
     const newResult = await Result.create({
-      studentId: new mongoose.Types.ObjectId(studentId),
+      studentCode: studentCode,
       testId: new mongoose.Types.ObjectId(testId),
       attemptId,
       correct,
@@ -70,7 +70,7 @@ exports.getResultsByTest = async (req, res) => {
 
     // 1) Natijalarni olish
     const results = await Result.find({ testId })
-      .populate("studentId", "name faculty groupNumber")
+      .populate("studentCode", "name faculty groupNumber")
       .populate("attemptId") // attempts.data
       .populate("testId"); // test mavzusi
 

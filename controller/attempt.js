@@ -6,9 +6,9 @@ const mongoose = require("mongoose");
 
 exports.startAttempt = async (req, res) => {
   try {
-    const { studentId, testId } = req.body;
+    const { studentCode, testId, studentInfo } = req.body;
 
-    if (!studentId || !testId) {
+    if (!studentCode || !testId) {
       return res.status(400).json({
         success: false,
         message: "studentId va testId yuborilishi shart!",
@@ -29,7 +29,7 @@ exports.startAttempt = async (req, res) => {
     const finishTime =
       duration > 0 ? new Date(now.getTime() + duration * 60000) : null;
 
-    let attempt = await Attempt.findOne({ studentId, testId });
+    let attempt = await Attempt.findOne({ studentCode, testId });
 
     if (attempt) {
       if (attempt.status === "finished") {
@@ -81,7 +81,8 @@ exports.startAttempt = async (req, res) => {
     }
 
     attempt = await Attempt.create({
-      studentId,
+      studentCode,
+      studentInfo,
       testId,
       questions,
       startTime: now,

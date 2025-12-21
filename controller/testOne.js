@@ -8,10 +8,10 @@ const TestInfo = require("../model/testInfo");
 
 exports.startTest = async (req, res) => {
   try {
-    const { studentId, testId } = req.query;
+    const { studentCode, testId } = req.query;
 
     // 1) Student oldin test boshlaganmi?
-    let attempt = await Attempt.findOne({ studentId, testId });
+    let attempt = await Attempt.findOne({ studentCode, testId });
 
     if (attempt) {
       return res.json({
@@ -33,7 +33,7 @@ exports.startTest = async (req, res) => {
 
     // 4) yangi attempt yaratish
     attempt = await Attempt.create({
-      studentId,
+      studentCode,
       testId,
       questions,
     });

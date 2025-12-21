@@ -3,9 +3,8 @@ const mongoose = require("mongoose");
 const testSchema = new mongoose.Schema(
   {
     testId: {
-      // <<<<< YANGI QO‘SHILDI
       type: mongoose.Schema.Types.ObjectId,
-      ref: "test", // bu sizning other model nomi
+      ref: "test",
       required: true,
     },
     question: {
