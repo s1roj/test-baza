@@ -89,9 +89,13 @@ exports.login = async (req, res) => {
         message: "Noto‘g‘ri parol!",
       });
     } else {
-      const token = jwt.sign({ adminId: admin._id }, secret_key, {
-        expiresIn: time,
-      });
+      const token = jwt.sign(
+        { adminId: admin._id, role: admin.role },
+        secret_key,
+        {
+          expiresIn: time,
+        }
+      );
       return res.json({ success: true, token: token });
     }
   } catch (error) {
@@ -103,7 +107,7 @@ exports.decodeToken = async (req, res) => {
   const { token } = req.headers;
   jwt.verify(token, secret_key, async function (err, decode) {
     if (err) {
-      return res 
+      return res
         .status(401)
         .json({ success: false, message: "Noto'g'ri token" });
     } else {

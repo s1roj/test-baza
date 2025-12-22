@@ -1,6 +1,5 @@
 const Result = require("../model/result");
 const Attempt = require("../model/attempt");
-const User = require("../model/user");
 const mongoose = require("mongoose");
 
 exports.saveResult = async (req, res) => {

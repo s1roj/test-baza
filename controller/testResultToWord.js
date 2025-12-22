@@ -10,7 +10,7 @@ const {
 } = require("docx");
 const Test = require("../model/test");
 const Result = require("../model/result");
-const User = require("../model/user");
+const Attempt = require("../model/attempt");
 
 exports.downloadResultsWord = async (req, res) => {
   try {
@@ -30,12 +30,11 @@ exports.downloadResultsWord = async (req, res) => {
     // Talabalar ma’lumotlari bilan bog‘lash
     const fullData = [];
     for (let r of results) {
-      const user = await User.findById(r.studentCode);
-
+      const user = await Attempt.find({ studentCode: r.studentCode });
       fullData.push({
-        name: user ? user.name : "Noma’lum",
-        faculty: user ? user.faculty : "-",
-        group: user ? user.groupNumber : "-",
+        name: user ? user.studentInfo.fullName : "Noma’lum",
+        faculty: user ? user.studentInfo.faculty : "-",
+        group: user ? user.studentInfo.group : "-",
         correct: r.correct,
         wrong: r.wrong,
         percent: r.percent,

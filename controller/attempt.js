@@ -82,9 +82,9 @@ exports.startAttempt = async (req, res) => {
 
     attempt = await Attempt.create({
       studentCode,
-      studentInfo,
       testId,
       questions,
+      studentInfo,
       startTime: now,
       finishTime,
     });
