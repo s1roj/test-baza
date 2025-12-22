@@ -38,6 +38,7 @@ exports.startAttempt = async (req, res) => {
           already: true,
           reason: "already_finished",
           message: "Siz bu testni allaqachon yakunlagansiz.",
+          attemptId: attempt._id,
         });
       }
 
