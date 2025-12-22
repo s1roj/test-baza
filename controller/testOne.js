@@ -167,6 +167,14 @@ exports.getAll = async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 };
+exports.getById = async (req, res) => {
+  try {
+    const data = await TestOne.find({ testId: req.params.id });
+    res.json({ success: true, data });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
 
 exports.create = async (req, res) => {
   try {

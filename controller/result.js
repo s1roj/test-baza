@@ -69,7 +69,7 @@ exports.getResultsByTest = async (req, res) => {
 
     // 1) Natijalarni olish
     const results = await Result.find({ testId })
-      .populate("studentCode", "name faculty groupNumber")
+      .populate("studentCode", "name faculty group")
       .populate("attemptId") // attempts.data
       .populate("testId"); // test mavzusi
 

@@ -15,6 +15,7 @@ router.get("/api/testOne/start", controller.startTest);
 // CRUD
 router.post("/api/testOne/create", controller.create);
 router.get("/api/testOne/all", controller.getAll);
+router.get("/api/testOne/:id", controller.getById);
 router.put("/api/testOne/update/:id", controller.update);
 router.delete("/api/testOne/delete/:id", controller.delete);
 

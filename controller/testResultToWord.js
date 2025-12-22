@@ -30,7 +30,7 @@ exports.downloadResultsWord = async (req, res) => {
     // Talabalar ma’lumotlari bilan bog‘lash
     const fullData = [];
     for (let r of results) {
-      const user = await Attempt.find({ studentCode: r.studentCode });
+      const user = await Attempt.findById(r.attemptId);
       fullData.push({
         name: user ? user.studentInfo.fullName : "Noma’lum",
         faculty: user ? user.studentInfo.faculty : "-",
