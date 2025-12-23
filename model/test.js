@@ -16,6 +16,7 @@ const test = mongoose.Schema(
       type: Boolean,
       default: false, // test yaratilganda YOPIQ
     },
+    creator: { type: String, required: true },
   },
   {
     timestamps: true,

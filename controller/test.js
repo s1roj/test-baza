@@ -7,7 +7,7 @@ function generateTestCode() {
 
 exports.create = async (req, res) => {
   try {
-    const { title, desc, duration } = req.body;
+    const { title, desc, duration, creator } = req.body;
 
     // unikal 4 xonali kod yaratish
     let testCode;
@@ -23,6 +23,7 @@ exports.create = async (req, res) => {
       desc,
       duration,
       testCode, // yangi maydon
+      creator,
     });
 
     res.json({ success: true, data: newTest });
