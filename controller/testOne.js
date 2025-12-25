@@ -100,7 +100,6 @@ exports.uploadWord = async (req, res) => {
   }
 };
 
-// WORD PARSER FUNKSIYASI
 function parseWord(text) {
   const lines = text
     .split("\n")
@@ -145,16 +144,37 @@ function parseWord(text) {
 
   return tests;
 }
+function shuffleOptionsKeepCorrect(options, correctIndex) {
+  const arr = options.map((text, idx) => ({ text, idx }));
 
-// WORD → MODEL FORMATIGA O‘GIRISH
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+
+  const newOptions = arr.map((x) => x.text);
+  const newCorrectIndex = arr.findIndex((x) => x.idx === correctIndex);
+
+  return { newOptions, newCorrectIndex };
+}
+
 function testBuilder(question, opts) {
   const optionTexts = opts.map((o) => o.text);
   const correctIndex = opts.findIndex((o) => o.isCorrect);
 
+  if (correctIndex === -1 || optionTexts.length < 2) {
+    return { question, options: optionTexts, correctIndex };
+  }
+
+  const { newOptions, newCorrectIndex } = shuffleOptionsKeepCorrect(
+    optionTexts,
+    correctIndex
+  );
+
   return {
     question,
-    options: optionTexts,
-    correctIndex,
+    options: newOptions,
+    correctIndex: newCorrectIndex,
   };
 }
 
