@@ -1,4 +1,8 @@
 const Test = require("../model/test");
+const TestOne = require("../model/testOne");
+const TestInfo = require("../model/testInfo");
+const Attempt = require("../model/attempt");
+const Results = require("../model/result");
 const mongoose = require("mongoose");
 
 function generateTestCode() {
@@ -122,8 +126,12 @@ exports.delete = async (req, res) => {
     }
 
     await Test.findByIdAndDelete({ _id: req.params.id });
-    res.status(200).json({ succes: true, data: "Post deleted" });
+    await TestOne.deleteMany({ testId: req.params.id });
+    await TestInfo.deleteMany({ testId: req.params.id });
+    await Attempt.deleteMany({ testId: req.params.id });
+    await Results.deleteMany({ testId: req.params.id });
+    res.status(200).json({ success: true, data: "Delete Ishladi" });
   } catch {
-    res.status(500).json({ succes: false, data: "DeleteIshlamadi" });
+    res.status(500).json({ success: false, data: "DeleteIshlamadi" });
   }
 };
