@@ -2,6 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const mongodb = require("./config/database");
+const path = require("path");
+
 const app = express();
 const PORT = 3100;
 
@@ -18,6 +20,7 @@ app.use(require("./router/attempt"));
 app.use(require("./router/user"));
 app.use(require("./router/admin"));
 app.use(require("./router/testWord"));
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 mongodb();
 app.listen(PORT, async () => {

@@ -1,10 +1,14 @@
-const Test = require("../model/test");
-const TestOne = require("../model/testOne");
 const fs = require("fs");
+const path = require("path");
+const crypto = require("crypto");
 const mammoth = require("mammoth");
 const mongoose = require("mongoose");
+const Test = require("../model/test");
+const TestOne = require("../model/testOne");
 const Attempt = require("../model/attempt");
 const TestInfo = require("../model/testInfo");
+const { saveImage } = require("../utils/imageConverter");
+const BASE_URL = "http://localhost:3100";
 
 exports.startTest = async (req, res) => {
   try {
@@ -56,23 +60,16 @@ exports.uploadWord = async (req, res) => {
         .json({ success: false, message: "File yuklanmadi!" });
     }
 
-    const result = await mammoth.extractRawText({ path: req.file.path });
-    const text = result.value;
-
-    let tests = parseWord(text);
-
-    // testId ni testslarga qo‘shamiz
+    // 1) testId tekshir
     const testId = req.body.testId;
-
     if (!testId) {
-      return res.status(400).json({
-        success: false,
-        message: "testId yuborilishi shart!",
-      });
+      return res
+        .status(400)
+        .json({ success: false, message: "testId yuborilishi shart!" });
     }
 
-    const randomCount = req.body.randomCount;
-
+    // 2) randomCount saqlash
+    const randomCount = Number(req.body.randomCount || 0);
     if (randomCount) {
       await TestInfo.findOneAndUpdate(
         { testId },
@@ -81,104 +78,216 @@ exports.uploadWord = async (req, res) => {
       );
     }
 
-    tests = tests.map((t) => ({
-      ...t,
-      testId,
-    }));
+    // 3) Word -> HTML + rasmni uploads ga yozish
+    const result = await mammoth.convertToHtml(
+      { path: req.file.path },
+      {
+        convertImage: mammoth.images.inline(async (image) => {
+          const buffer = await image.read();
+          const src = await saveImage(buffer, image.contentType);
 
+          return { src };
+        }),
+      }
+    );
+
+    const html = result.value || "";
+
+    // 4) HTML -> tests (blocks)
+    let tests = parseHtmlToTests(html, BASE_URL);
+
+    // 5) testId qo'shish
+    tests = tests.map((t) => ({ ...t, testId }));
+
+    // 6) insert
     const saved = await TestOne.insertMany(tests);
 
+    // 7) temp file o'chirish
     fs.unlinkSync(req.file.path);
 
-    res.json({
-      success: true,
-      totalSaved: saved.length,
-      tests: saved,
-    });
+    res.json({ success: true, totalSaved: saved.length });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
 };
 
-function parseWord(text) {
-  const lines = text
+function stripOuterP(htmlLine) {
+  // <p>...</p> ni tashlab, ichini olib beradi
+  return htmlLine
+    .replace(/^<p[^>]*>/i, "")
+    .replace(/<\/p>$/i, "")
+    .trim();
+}
+
+function cleanTextOnly(htmlLine) {
+  return String(htmlLine || "")
+    .replace(/<img[^>]*>/gi, "")
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+}
+
+function htmlToBlocks(htmlLine, baseUrl) {
+  // line ichida text + <img> + text bo'lishi mumkin
+  // buni ketma-ket blocklarga ajratamiz
+  const blocks = [];
+
+  let s = stripOuterP(htmlLine);
+
+  // <img ...> lar bo'yicha parchalash
+  // regex img taglarini topadi
+  const imgRegex = /<img\b[^>]*\bsrc=["']([^"']+)["'][^>]*\/?>/gi;
+
+  let lastIndex = 0;
+  let match;
+
+  while ((match = imgRegex.exec(s)) !== null) {
+    const imgTagStart = match.index;
+    const imgTagEnd = imgRegex.lastIndex;
+    const src = match[1];
+
+    // img dan oldingi text
+    const before = s.slice(lastIndex, imgTagStart);
+    const beforeText = before
+      .replace(/<[^>]*>/g, "")
+      .replace(/&nbsp;/g, " ")
+      .trim();
+    if (beforeText) blocks.push({ type: "text", value: beforeText });
+
+    // img block
+    const abs = src.startsWith("http")
+      ? src
+      : `${baseUrl}${src.startsWith("/") ? "" : "/"}${src}`;
+    blocks.push({ type: "image", value: abs });
+
+    lastIndex = imgTagEnd;
+  }
+
+  // oxirgi text
+  const after = s.slice(lastIndex);
+  const afterText = after
+    .replace(/<[^>]*>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .trim();
+  if (afterText) blocks.push({ type: "text", value: afterText });
+
+  // Agar umuman img bo'lmasa, textni block qilamiz
+  if (blocks.length === 0) {
+    const onlyText = cleanTextOnly(s);
+    if (onlyText) blocks.push({ type: "text", value: onlyText });
+  }
+
+  return blocks;
+}
+
+function parseHtmlToTests(html, baseUrl) {
+  // mammoth ko'pincha <p> ... </p> beradi.
+  // Har bir <p> ni alohida line deb olamiz.
+  const lines = String(html || "")
+    .replace(/\r/g, "")
+    .replace(/<\/p>/gi, "\n")
+    .replace(/<p[^>]*>/gi, "")
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
 
   const tests = [];
-  let question = "";
-  let options = [];
 
-  for (let line of lines) {
-    // SAVOL — * bilan boshlansa
-    if (line.startsWith("*")) {
-      if (question && options.length >= 2) {
-        tests.push(testBuilder(question, options));
+  let questionBlocks = [];
+  let options = []; // { blocks, isCorrect }
+
+  for (const rawLine of lines) {
+    // prefixni aniqlash uchun text-only
+    const check = cleanTextOnly(rawLine);
+
+    // Savol boshlanishi: "*"
+    if (check.startsWith("*")) {
+      if (questionBlocks.length && options.length >= 2) {
+        tests.push(testBuilder(questionBlocks, options));
       }
 
-      question = line.substring(1).trim();
+      // savolning o'zi ( * ni olib tashlaymiz )
+      const qLine = rawLine.replace(/^\s*\*\s*/, "");
+      questionBlocks = htmlToBlocks(qLine, baseUrl);
       options = [];
       continue;
     }
 
-    // TO‘G‘RI VARIANT — faqat QATOR boshidagi +
-    if (/^\+\s*/.test(line)) {
-      const text = line.replace(/^\+\s*/, "").trim();
-      options.push({ text, isCorrect: true });
+    // To'g'ri variant: "+"
+    if (check.startsWith("+")) {
+      const optLine = rawLine.replace(/^\s*\+\s*/, "");
+      options.push({
+        blocks: htmlToBlocks(optLine, baseUrl),
+        isCorrect: true,
+      });
       continue;
     }
 
-    // ODDIY VARIANT — faqat QATOR boshidagi =
-    if (/^=\s*/.test(line)) {
-      const text = line.replace(/^=\s*/, "").trim();
-      options.push({ text, isCorrect: false });
+    // Oddiy variant: "="
+    if (check.startsWith("=")) {
+      const optLine = rawLine.replace(/^\s*=\s*/, "");
+      options.push({
+        blocks: htmlToBlocks(optLine, baseUrl),
+        isCorrect: false,
+      });
       continue;
+    }
+
+    // Savol davomiy qismi: (text yoki img bo'lishi mumkin)
+    if (questionBlocks.length) {
+      const extraBlocks = htmlToBlocks(rawLine, baseUrl);
+      questionBlocks = questionBlocks.concat(extraBlocks);
     }
   }
 
-  // Oxirgi savolni ham saqlash
-  if (question && options.length >= 2) {
-    tests.push(testBuilder(question, options));
+  // oxirgisi
+  if (questionBlocks.length && options.length >= 2) {
+    tests.push(testBuilder(questionBlocks, options));
   }
 
   return tests;
 }
-function shuffleOptionsKeepCorrect(options, correctIndex) {
-  const arr = options.map((text, idx) => ({ text, idx }));
+
+function shuffleOptionsKeepCorrect(optionObjs, correctIndex) {
+  const arr = optionObjs.map((opt, idx) => ({ opt, idx }));
 
   for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 
-  const newOptions = arr.map((x) => x.text);
+  const newOptions = arr.map((x) => x.opt);
   const newCorrectIndex = arr.findIndex((x) => x.idx === correctIndex);
 
   return { newOptions, newCorrectIndex };
 }
 
-function testBuilder(question, opts) {
-  const optionTexts = opts.map((o) => o.text);
+function testBuilder(questionBlocks, opts) {
   const correctIndex = opts.findIndex((o) => o.isCorrect);
 
-  if (correctIndex === -1 || optionTexts.length < 2) {
-    return { question, options: optionTexts, correctIndex };
+  // opts -> DB format (isCorrect olib tashlanadi)
+  const optionObjs = opts.map((o) => ({ blocks: o.blocks }));
+
+  if (correctIndex === -1 || optionObjs.length < 2) {
+    return {
+      questionBlocks,
+      options: optionObjs,
+      correctIndex: Math.max(correctIndex, 0),
+    };
   }
 
   const { newOptions, newCorrectIndex } = shuffleOptionsKeepCorrect(
-    optionTexts,
+    optionObjs,
     correctIndex
   );
 
   return {
-    question,
+    questionBlocks,
     options: newOptions,
     correctIndex: newCorrectIndex,
   };
 }
 
-// CRUD
 exports.getAll = async (req, res) => {
   try {
     const data = await TestOne.find();

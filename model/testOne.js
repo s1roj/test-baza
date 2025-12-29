@@ -1,24 +1,60 @@
 const mongoose = require("mongoose");
 
-const testSchema = new mongoose.Schema(
+const blockSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ["text", "image"],
+      required: true,
+    },
+    value: {
+      type: String,
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
+const optionSchema = new mongoose.Schema(
+  {
+    blocks: {
+      type: [blockSchema],
+      default: [],
+      validate: {
+        validator: (v) => Array.isArray(v) && v.length > 0,
+        message: "Variant bo‘sh bo‘lmasligi kerak!",
+      },
+    },
+  },
+  { _id: false }
+);
+
+const testOneSchema = new mongoose.Schema(
   {
     testId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "test",
       required: true,
     },
-    question: {
-      type: String,
-      required: true,
+
+    questionBlocks: {
+      type: [blockSchema],
+      default: [],
+      validate: {
+        validator: (v) => Array.isArray(v) && v.length > 0,
+        message: "Savol bo‘sh bo‘lmasligi kerak!",
+      },
     },
+
     options: {
-      type: [String],
+      type: [optionSchema],
       required: true,
       validate: {
-        validator: (v) => v.length >= 2,
+        validator: (v) => Array.isArray(v) && v.length >= 2,
         message: "Kamida 2 ta variant bo‘lishi kerak!",
       },
     },
+
     correctIndex: {
       type: Number,
       required: true,
@@ -28,4 +64,4 @@ const testSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model("testOne", testSchema);
+module.exports = mongoose.model("testOne", testOneSchema);
