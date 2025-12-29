@@ -104,3 +104,18 @@ exports.startAttempt = async (req, res) => {
     });
   }
 };
+exports.delete = async (req, res) => {
+  try {
+    const data = await Attempt.findById({ _id: req.params.id }).exec();
+
+    if (!data) {
+      res.status(404).json({ success: false, data: "Post not found" });
+      return;
+    }
+
+    await Attempt.findByIdAndDelete({ _id: req.params.id });
+    res.status(200).json({ success: true, data: "Post deleted" });
+  } catch {
+    res.status(500).json({ success: false, data: "DeleteIshlamadi" });
+  }
+};

@@ -9,6 +9,8 @@ const attemptSchema = new mongoose.Schema({
     fullName: String,
     faculty: String,
     group: String,
+    studentNumber: String,
+    studentImage: String,
   },
   testId: { type: mongoose.Schema.Types.ObjectId, required: true },
   questions: { type: Array, required: true }, // random tanlangan testlar
