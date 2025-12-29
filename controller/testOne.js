@@ -3,7 +3,6 @@ const path = require("path");
 const crypto = require("crypto");
 const mammoth = require("mammoth");
 const mongoose = require("mongoose");
-const Test = require("../model/test");
 const TestOne = require("../model/testOne");
 const Attempt = require("../model/attempt");
 const TestInfo = require("../model/testInfo");

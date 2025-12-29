@@ -4,6 +4,8 @@ const TestInfo = require("../model/testInfo");
 const Attempt = require("../model/attempt");
 const Results = require("../model/result");
 const mongoose = require("mongoose");
+const fs = require("fs");
+const path = require("path");
 
 function generateTestCode() {
   return Math.floor(1000 + Math.random() * 9000).toString();
@@ -118,20 +120,69 @@ exports.getByCode = async (req, res) => {
 
 exports.delete = async (req, res) => {
   try {
-    const data = await Test.findById({ _id: req.params.id }).exec();
+    const testId = req.params.id;
 
-    if (!data) {
-      res.status(404).json({ succes: false, data: "Post not found" });
-      return;
+    const test = await Test.findById(testId);
+    if (!test) {
+      return res.status(404).json({
+        success: false,
+        message: "Test topilmadi",
+      });
     }
 
-    await Test.findByIdAndDelete({ _id: req.params.id });
-    await TestOne.deleteMany({ testId: req.params.id });
-    await TestInfo.deleteMany({ testId: req.params.id });
-    await Attempt.deleteMany({ testId: req.params.id });
-    await Results.deleteMany({ testId: req.params.id });
-    res.status(200).json({ success: true, data: "Delete Ishladi" });
-  } catch {
-    res.status(500).json({ success: false, data: "DeleteIshlamadi" });
+    const questions = await TestOne.find({ testId });
+
+    const uploadDir = path.resolve("uploads");
+
+    const deleteImageByUrl = (url) => {
+      if (!url) return;
+
+      const fileName = url.split("/uploads/")[1];
+      if (!fileName) return;
+
+      const filePath = path.join(uploadDir, fileName);
+
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    };
+
+    for (const q of questions) {
+      if (Array.isArray(q.questionBlocks)) {
+        q.questionBlocks.forEach((b) => {
+          if (b.type === "image") {
+            deleteImageByUrl(b.value);
+          }
+        });
+      }
+
+      if (Array.isArray(q.options)) {
+        q.options.forEach((opt) => {
+          if (Array.isArray(opt.blocks)) {
+            opt.blocks.forEach((b) => {
+              if (b.type === "image") {
+                deleteImageByUrl(b.value);
+              }
+            });
+          }
+        });
+      }
+    }
+    await Test.deleteOne({ _id: testId });
+    await TestOne.deleteMany({ testId });
+    await TestInfo.deleteMany({ testId });
+    await Attempt.deleteMany({ testId });
+    await Results.deleteMany({ testId });
+
+    return res.status(200).json({
+      success: true,
+      message: "Test va barcha rasmlari bilan o‘chirildi",
+    });
+  } catch (err) {
+    console.error("DELETE TEST ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Testni o‘chirishda xatolik",
+    });
   }
 };
