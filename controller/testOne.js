@@ -59,7 +59,6 @@ exports.uploadWord = async (req, res) => {
         .json({ success: false, message: "File yuklanmadi!" });
     }
 
-    // 1) testId tekshir
     const testId = req.body.testId;
     if (!testId) {
       return res
@@ -67,7 +66,6 @@ exports.uploadWord = async (req, res) => {
         .json({ success: false, message: "testId yuborilishi shart!" });
     }
 
-    // 2) randomCount saqlash
     const randomCount = Number(req.body.randomCount || 0);
     if (randomCount) {
       await TestInfo.findOneAndUpdate(
@@ -77,7 +75,6 @@ exports.uploadWord = async (req, res) => {
       );
     }
 
-    // 3) Word -> HTML + rasmni uploads ga yozish
     const result = await mammoth.convertToHtml(
       { path: req.file.path },
       {
@@ -92,16 +89,12 @@ exports.uploadWord = async (req, res) => {
 
     const html = result.value || "";
 
-    // 4) HTML -> tests (blocks)
     let tests = parseHtmlToTests(html, BASE_URL);
 
-    // 5) testId qo'shish
     tests = tests.map((t) => ({ ...t, testId }));
 
-    // 6) insert
     const saved = await TestOne.insertMany(tests);
 
-    // 7) temp file o'chirish
     fs.unlinkSync(req.file.path);
 
     res.json({ success: true, totalSaved: saved.length });
