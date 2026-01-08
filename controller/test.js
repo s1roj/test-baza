@@ -124,50 +124,42 @@ exports.delete = async (req, res) => {
 
     const test = await Test.findById(testId);
     if (!test) {
-      return res.status(404).json({
-        success: false,
-        message: "Test topilmadi",
+      return res
+        .status(404)
+        .json({ success: false, message: "Test topilmadi" });
+    }
+
+    const questions = await TestOne.find({ testId }).lean();
+
+    // 1) Shu testga tegishli barcha image value'larni yig'amiz
+    const images = new Set();
+
+    for (const q of questions) {
+      (q.questionBlocks || []).forEach((b) => {
+        if (b?.type === "image" && b.value) images.add(b.value);
+      });
+
+      (q.options || []).forEach((opt) => {
+        (opt.blocks || []).forEach((b) => {
+          if (b?.type === "image" && b.value) images.add(b.value);
+        });
       });
     }
 
-    const questions = await TestOne.find({ testId });
+    // 2) Fayllarni o'chirish (faqat boshqa joyda ishlatilmasa)
+    for (const imgValue of images) {
+      const filePath = getUploadFilePathFromValue(imgValue);
+      if (!filePath) continue;
 
-    const uploadDir = path.resolve("uploads");
+      const usedElsewhere = await isImageUsedElsewhere(testId, imgValue);
+      if (usedElsewhere) continue;
 
-    const deleteImageByUrl = (url) => {
-      if (!url) return;
-
-      const fileName = url.split("/uploads/")[1];
-      if (!fileName) return;
-
-      const filePath = path.join(uploadDir, fileName);
-
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
-    };
-
-    for (const q of questions) {
-      if (Array.isArray(q.questionBlocks)) {
-        q.questionBlocks.forEach((b) => {
-          if (b.type === "image") {
-            deleteImageByUrl(b.value);
-          }
-        });
-      }
-
-      if (Array.isArray(q.options)) {
-        q.options.forEach((opt) => {
-          if (Array.isArray(opt.blocks)) {
-            opt.blocks.forEach((b) => {
-              if (b.type === "image") {
-                deleteImageByUrl(b.value);
-              }
-            });
-          }
-        });
-      }
+      try {
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      } catch {}
     }
+
+    // 3) DB yozuvlarini o'chirish
     await Test.deleteOne({ _id: testId });
     await TestOne.deleteMany({ testId });
     await TestInfo.deleteMany({ testId });
@@ -176,13 +168,13 @@ exports.delete = async (req, res) => {
 
     return res.status(200).json({
       success: true,
-      message: "Test va barcha rasmlari bilan o‘chirildi",
+      message: "Test, savollar va tegishli rasmlar o‘chirildi",
     });
   } catch (err) {
     console.error("DELETE TEST ERROR:", err);
     return res.status(500).json({
       success: false,
-      message: "Testni o‘chirishda xatolik",
+      message: err.message || "Testni o‘chirishda xatolik",
     });
   }
 };
